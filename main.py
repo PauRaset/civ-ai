@@ -3,17 +3,23 @@ import logging
 import os
 import autogen
 
-# Configuración básica
+# 1. Configuración básica de Logs
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s')
+
+# 2. Configuración de API Key
 api_key = os.environ.get("OPENAI_API_KEY")
 
 if not api_key:
-    logging.error("FALTA API KEY. Configúrala en Railway.")
+    logging.error("FALTA API KEY. Configúrala en las Variables de Railway.")
     exit()
 
-# Configuración del Cerebro (GPT)
-config_list = [{"model": "gpt-3.5-turbo", "api_key": api_key}] # Usa gpt-4 si puedes permitírtelo
-llm_config = {"config_list": config_list, "temperature": 0.5}
+# 3. Configuración del Modelo (Cerebro)
+# Nota: Si tienes acceso a GPT-4, úsalo aquí para mejor razonamiento científico.
+config_list = [{"model": "gpt-3.5-turbo", "api_key": api_key}]
+llm_config = {
+    "config_list": config_list,
+    "temperature": 0.5, # 0.5 es bueno para equilibrio entre creatividad y precisión
+}
 
 def simular_ciclo_de_investigacion():
     ciclo = 0
@@ -28,34 +34,33 @@ def simular_ciclo_de_investigacion():
         logging.info(f"\n--- INICIO DEL CICLO {ciclo} ---")
         
         try:
-            # 1. El Agente Científico (El que escribe código)
+            # --- AGENTE 1: El Científico (Escribe el código) ---
             cientifico = autogen.AssistantAgent(
                 name="Cientifico_Datos",
-                system_message="Eres un experto en Python y Ciencia de Datos. Tu trabajo es escribir scripts de Python para resolver problemas matemáticos o simular fenómenos físicos simples. Cuando escribas código, ponlo en bloques ```python ... ```.",
+                system_message="Eres un experto en Python y Ciencia de Datos. Tu trabajo es escribir scripts de Python para resolver problemas matemáticos o simular fenómenos físicos simples. Cuando escribas código, ponlo siempre dentro de bloques ```python ... ```.",
                 llm_config=llm_config,
             )
 
-            # 2. El Ejecutor (Nosotros/El Sistema que corre el código)
-            # AQUÍ ESTÁ LA MAGIA: use_docker=False ejecuta el código en el propio servidor Railway
+            # --- AGENTE 2: El Ordenador Central (Ejecuta el código) ---
+            # use_docker=False es vital en Railway porque ya estamos dentro de un contenedor
             ejecutor = autogen.UserProxyAgent(
                 name="Ordenador_Central",
                 human_input_mode="NEVER",
-                max_consecutive_auto_reply=5,  # Dejamos que interactúen hasta 5 veces
+                max_consecutive_auto_reply=5,
                 code_execution_config={
-                    "work_dir": work_dir,      # Donde se guardan los archivos
-                    "use_docker": False,       # Corremos directo en el contenedor de Railway
-                    "last_n_messages": 2       # Mira los últimos mensajes para buscar código
+                    "work_dir": work_dir,
+                    "use_docker": False, 
+                    "last_n_messages": 2
                 }
             )
             
-            # 3. Definimos una misión para este ciclo
-            # En el futuro, esto vendría de una base de datos de "problemas pendientes"
-            mision = "Genera un script en Python que simule una caída libre con resistencia del aire usando numpy, ejecuta la simulación y dime cuánto tarda el objeto en llegar al suelo desde 100 metros."
+            # --- DEFINICIÓN DE LA MISIÓN ---
+            # Pedimos algo que requiera cálculo real, no solo texto.
+            mision = "Genera un script en Python que simule una caída libre con resistencia del aire usando numpy. Ejecuta la simulación y dime cuánto tarda el objeto en llegar al suelo desde 100 metros."
             
             logging.info(f"Misión enviada: {mision}")
             
-            # 4. Iniciar la colaboración
-            # El Ejecutor le da la orden al Científico -> Científico escribe código -> Ejecutor lo corre -> Le da el resultado -> Científico concluye.
+            # --- INICIO DE LA COLABORACIÓN ---
             ejecutor.initiate_chat(
                 cientifico,
                 message=mision
@@ -64,11 +69,13 @@ def simular_ciclo_de_investigacion():
             logging.info("Ciclo terminado exitosamente.")
 
         except Exception as e:
-            logging.error(f"Error en el ciclo: {e}")
+            logging.error(f"Error crítico en el ciclo: {e}")
 
-        # Pausa de seguridad (10 minutos) para controlar gastos
+        # --- DESCANSO ---
+        # 600 segundos = 10 minutos. Ajusta esto según tu presupuesto.
         logging.info("Descansando 600 segundos...")
         time.sleep(600)
 
 if __name__ == "__main__":
+    logging.info("Arrancando Sistema de Civilización IA...")
     simular_ciclo_de_investigacion()
