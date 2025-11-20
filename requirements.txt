@@ -1,6 +1,6 @@
-pyautogen
-openai
+ag2[openai]
 python-dotenv
 numpy
 pandas
 matplotlib
+
