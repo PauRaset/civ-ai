@@ -8,7 +8,7 @@ import autogen
 # Configuración básica
 # ==========================
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s')
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(message)s")
 
 api_key = os.environ.get("OPENAI_API_KEY")
 if not api_key:
@@ -57,7 +57,7 @@ import numpy as np
 
 def evolve_state(psi, H, dt, steps):
     \"\"\"Evoluciona un estado cuántico psi bajo un Hamiltoniano H durante
-    'steps' pasos de tamaño dt usando un esquema de Euler complejo simple:
+    'steps' pasos de tamaño dt usando un esquema de Euler complejo:
 
         psi_{n+1} = psi_n - i * dt * H @ psi_n
 
@@ -65,13 +65,13 @@ def evolve_state(psi, H, dt, steps):
     - Este esquema NO es perfectamente unitario, pero es suficiente
       para simulaciones toy con pasos pequeños y pocos pasos.
     - psi y H deben ser arrays de numpy compatibles (H @ psi).
-    - Es responsabilidad del usuario renormalizar psi si es necesario.
+    - Se renormaliza en cada paso para evitar explosiones numéricas.
     \"\"\"
     psi_t = psi.astype(complex)
     H = H.astype(complex)
-    for _ in range(steps):
+    for _ in range(int(steps)):
         psi_t = psi_t - 1j * dt * (H @ psi_t)
-        # Renormalizamos ligeramente para evitar que se dispare numéricamente
+        # Renormalizamos para mantener la norma ~1
         norm = np.sqrt(np.sum(np.abs(psi_t) ** 2))
         if norm > 0:
             psi_t = psi_t / norm
@@ -79,13 +79,22 @@ def evolve_state(psi, H, dt, steps):
 
 
 def compute_probability_region(psi, indices):
-    \"\"\"Devuelve la probabilidad total en una región (índices de la rejilla).\"\"\"
+    \"\"\"Devuelve la probabilidad total en una región (índices o máscara de la rejilla).
+
+    'indices' puede ser:
+    - un slice,
+    - una lista/array de índices,
+    - o un array booleano.
+    \"\"\"
     sub = psi[indices]
     return float(np.sum(np.abs(sub) ** 2))
 
 
 def fidelity(psi, psi_target):
-    \"\"\"Calcula una fidelidad sencilla entre dos estados normalizados.\"\"\"
+    \"\"\"Calcula la fidelidad entre dos estados normalizados.
+
+    Fidelidad = |<psi_target | psi>|^2
+    \"\"\"
     num = np.vdot(psi_target, psi)  # producto interno complejo
     return float(np.abs(num) ** 2)
 """
@@ -174,32 +183,36 @@ def analizar_y_guardar_resultados(ciclo, cientifico, ordenador_central, archivis
 
     prompt_archivista = f"""
 Eres el Archivista de una civilización de IAs que forman un EQUIPO DE INVESTIGACIÓN
-en mecánica cuántica y control cuántico de sistemas simples.
+en mecánica cuántica (1D/2D/3D) y control cuántico de sistemas simples.
 
 Analizas el historial de un experimento y decides si hay algo relevante
 para investigaciones futuras.
 
-Aspectos a tener en cuenta:
-- El objetivo típico de los experimentos es estudiar dinámica cuántica en 1D
-  (ecuación de Schrödinger con potenciales sencillos) o en sistemas de pocos qubits
-  (2–4 qubits) y buscar estrategias de CONTROL que maximicen alguna métrica:
-  probabilidad de encontrar la partícula en cierta región, fidelidad de un estado
-  objetivo, coherencia, etc.
-- Un experimento es más relevante cuanto más claramente mejora alguna métrica de
-  control o revela un patrón/cuasi-regla interesante (p.ej. pauta en parámetros,
-  interferencias inesperadas, comportamiento no trivial).
+Aspectos clave:
+- El objetivo típico es estudiar dinámica cuántica (pozos, barreras, dobles pozos,
+  sistemas de pocos qubits, etc.) y estrategias de CONTROL que maximizan métricas:
+  probabilidad en ciertas regiones, fidelidad con estados objetivo, etc.
+- La métrica de control **debe ser físicamente significativa**:
+  - Probabilidad total en una región (entre 0 y 1),
+  - o fidelidad entre estados (entre 0 y 1).
+- Si el científico define la métrica de forma TRAMPA (por ejemplo dividiendo una
+  probabilidad por sí misma o normalizándola para que siempre sea 1.0), debes
+  considerar el experimento poco fiable y NO marcarlo como descubrimiento.
 
 Tarea:
-1. Resume en 1–2 frases qué experimento cuántico se ha hecho (sistema, potencial/qubits, tipo de control).
+1. Resume en 1–2 frases qué experimento cuántico se ha hecho (sistema, dimensionalidad 1D/2D/3D o qubits, tipo de control).
 2. Resume en 1–2 frases el resultado numérico principal (métrica u observables clave).
 3. Asigna una métrica de relevancia entre 0 y 1 (0 = nada interesante, 1 = descubrimiento muy relevante).
 4. Marca si el experimento merece ser recordado para ciclos futuros.
 5. Marca también si consideras que hay un "descubrimiento cuántico" notable. Se considera descubrimiento cuando:
-   - la métrica de relevancia es >= 0.8, O
+   - la métrica de relevancia es >= 0.8 y la métrica de control es honesta (no truco), O
    - el resultado muestra un patrón/estrategia de control no trivial que mejora
      claramente sobre intentos previos, O
    - aparece un comportamiento inesperado que merezca investigar más.
-6. Si es un descubrimiento, explica brevemente el motivo.
+6. Si detectas que la definición de la métrica de control es dudosa o tramposa
+   (por ejemplo, normalizar por sí misma para obtener siempre 1.0), asigna
+   metrica_relevancia <= 0.2 y es_descubrimiento = false, explicándolo en
+   motivo_descubrimiento.
 
 Devuelve SOLO un objeto JSON con esta estructura (sin texto extra):
 
@@ -249,7 +262,7 @@ def simular_ciclo_de_investigacion():
 
     while True:
         ciclo += 1
-        logging.info(f"\n=== INICIO DEL CICLO {ciclo} (Programa de Investigación Cuántica) ===")
+        logging.info(f"\n=== INICIO DEL CICLO {ciclo} (Programa de Investigación Cuántica 1D/2D/3D) ===")
 
         try:
             # --- AGENTE 1: Científico Cuántico ---
@@ -260,30 +273,37 @@ def simular_ciclo_de_investigacion():
                     "control cuántico dentro de una civilización de IAs. Tus compañeros son:\n"
                     "- Ordenador_Central: ejecuta el código que escribes.\n"
                     "- Archivista: analiza y registra los resultados más relevantes.\n\n"
-                    "Tu tarea es diseñar y refinar EXPERIMENTOS CUÁNTICOS NUMÉRICOS en dos familias principales:\n"
-                    "1) Dinámica de una partícula en 1D resolviendo la ecuación de Schrödinger dependiente del tiempo\n"
-                    "   para potenciales sencillos (pozo, doble pozo, barrera, potencial dependiente del tiempo, etc.),\n"
+                    "Tu tarea es diseñar y refinar EXPERIMENTOS CUÁNTICOS NUMÉRICOS en tres familias principales:\n"
+                    "1) Dinámica de una partícula en 1D resolviendo la ecuación de Schrödinger dependiente del tiempo,\n"
+                    "   con potenciales sencillos (pozo, doble pozo, barrera, potencial dependiente del tiempo, etc.),\n"
                     "   discretizando el espacio con numpy.\n"
-                    "2) Dinámica de sistemas de pocos qubits (2–4 qubits) representados por matrices pequeñas\n"
+                    "2) Modelos 2D y 3D TOY: rejillas 2D o 3D pequeñas (representadas como vectores 1D aplanados)\n"
+                    "   con potenciales sencillos. SIEMPRE mantén el número total de puntos <= 500 para que sea ligero.\n"
+                    "   Ejemplo: 10x10 (100 puntos) o 8x8x8 (512 ya es demasiado; mantén algo como 8x8x6 = 384).\n"
+                    "3) Dinámica de sistemas de pocos qubits (2–4 qubits) representados por matrices pequeñas\n"
                     "   (2x2, 4x4, 8x8, 16x16) y su evolución unitária bajo Hamiltonianos sencillos.\n\n"
                     "REGLAS IMPORTANTES DE CÓDIGO:\n"
                     "- Usa SIEMPRE Python con numpy.\n"
-                    "- NO uses numpy.linalg.expm, scipy.linalg.expm ni ninguna función expm de matriz.\n"
-                    f"- Para la evolución temporal, USA SIEMPRE las funciones del módulo '{os.path.basename(HELPERS_FILE)}',\n"
-                    "  en particular cuantica_helpers.evolve_state(psi, H, dt, steps), y si lo necesitas\n"
+                    "- NO uses numpy.linalg.expm, scipy.linalg.expm ni ninguna exponencial de matriz.\n"
+                    "- Para la evolución temporal, USA SIEMPRE las funciones del módulo cuantica_helpers,\n"
+                    "  en particular cuantica_helpers.evolve_state(psi, H, dt, steps), y si lo necesitas,\n"
                     "  cuantica_helpers.compute_probability_region o cuantica_helpers.fidelity.\n"
-                    "- No uses tamaños de matrices enormes: limita N (número de puntos en 1D) a algo como 100–300,\n"
-                    "  y el número de pasos de tiempo a algo como 100–500 para que las simulaciones sean ligeras.\n"
+                    "- No uses tamaños de matrices enormes: limita el tamaño del espacio de estados a <= 500 componentes.\n"
                     "- El código debe ir SIEMPRE dentro de bloques ```python ... ```.\n\n"
+                    "MÉTRICAS FÍSICAS (SIN TRAMPAS):\n"
+                    "- La métrica de control debe ser SIEMPRE una cantidad física cruda entre 0 y 1:\n"
+                    "  * Probabilidad total en una región concreta de la rejilla, o\n"
+                    "  * Fidelidad con un estado objetivo.\n"
+                    "- Está PROHIBIDO definir la métrica como una cantidad dividida por sí misma, por su máximo trivial\n"
+                    "  o por construcciones que la hagan casi siempre 1.0 sin información física real.\n"
+                    "- Siempre que uses probabilidad o fidelidad, imprime TAMBIÉN el valor crudo (por ejemplo PROB_REGION)\n"
+                    "  además de METRICA_CONTROL, y asegúrate de que METRICA_CONTROL coincide con ese valor crudo.\n\n"
                     "Antes de proponer un experimento nuevo:\n"
                     f"- Si existe el archivo '{DESCUBRIMIENTOS_FILE}', inspírate en esos descubrimientos para ampliarlos,\n"
                     "  refinarlos o comprobarlos.\n"
                     f"- Si no hay descubrimientos, revisa '{REGISTROS_FILE}' para evitar repetir exactamente lo mismo.\n\n"
-                    "Define SIEMPRE una métrica numérica entre 0 y 1 que mida el éxito del control\n"
-                    "(por ejemplo, probabilidad en una región o fidelidad con un estado objetivo) y haz que el script\n"
-                    "la imprima con claridad (por ejemplo: 'METRICA_CONTROL = 0.87').\n"
                     "Tu objetivo es que, ciclo a ciclo, este programa de investigación cuántica vaya descubriendo\n"
-                    "configuraciones, controles y patrones cada vez más interesantes."
+                    "configuraciones, controles y patrones cada vez más interesantes en sistemas 1D, 2D, 3D y de pocos qubits."
                 ),
                 llm_config=llm_config,
             )
@@ -308,6 +328,7 @@ def simular_ciclo_de_investigacion():
                     "Analizas conversaciones de otros agentes, extraes lo esencial y decides si merece guardarse. "
                     "Tu responsabilidad es marcar con claridad qué experimentos son rutinarios y cuáles pueden "
                     "considerarse descubrimientos cuánticos (según la métrica y los patrones observados). "
+                    "Debes ser especialmente crítico con métricas de control mal definidas o tramposas. "
                     "Siempre respondes con un único objeto JSON válido."
                 ),
                 llm_config=llm_config,
@@ -321,30 +342,35 @@ y control de sistemas sencillos.
 
 Debe cumplir:
 
-1. Elegir UNA de estas dos familias de modelos:
+1. Elegir UNA de estas familias de modelos:
    a) Partícula en 1D con ecuación de Schrödinger dependiente del tiempo
-      (discretizando el espacio en una rejilla 1D con numpy, usando un potencial sencillo
-      como pozo, doble pozo, barrera, potencial escalón, etc.), o
-   b) Sistema de pocos qubits (2–4) con evolución unitária bajo un Hamiltoniano sencillo.
+      (rejilla 1D pequeña con numpy, potencial pozo/barrera/doble pozo, etc.).
+   b) Modelo 2D o 3D TOY: pequeñas rejillas 2D/3D con potencial sencillo, siempre
+      aplanando la rejilla a un vector 1D y manteniendo el número total de puntos
+      del espacio de estados <= 500.
+   c) Sistema de pocos qubits (2–4) con evolución unitária bajo un Hamiltoniano sencillo.
 
 2. Definir un OBJETIVO DE CONTROL explícito:
    - Ejemplos: maximizar probabilidad en una región, maximizar fidelidad con un estado objetivo,
      mantener localización, forzar túnelización, etc.
 
 3. Implementar el experimento en Python (con numpy) describiendo brevemente en comentarios:
-   - Qué sistema cuántico se simula.
+   - Qué sistema cuántico se simula y si es 1D, 2D, 3D o qubits.
    - Qué controles se aplican (pulsos, cambios de potencial, variación de parámetros).
-   - Qué métrica se usa para evaluar el resultado (entre 0 y 1).
+   - Qué métrica se usa para evaluar el resultado (probabilidad o fidelidad entre 0 y 1).
 
 4. Para la evolución temporal NO debes implementar tu propio integrador caro, sino usar
    las funciones del módulo cuantica_helpers (por ejemplo evolve_state). No uses numpy.linalg.expm
    ni ninguna exponencial de matriz.
 
-5. Al final de la simulación, el script debe IMPRIMIR:
-   - La métrica de control (por ejemplo: 'METRICA_CONTROL = 0.87').
-   - Un breve resumen de lo que significa ese valor (en texto).
+5. Al final de la simulación, el script debe IMPRIMIR SIEMPRE:
+   - Un valor crudo de probabilidad o fidelidad (por ejemplo: 'PROB_REGION = ...' o 'FIDELIDAD = ...').
+   - La métrica de control, que debe ser EXACTAMENTE ese mismo valor (por ejemplo: 'METRICA_CONTROL = ...').
 
-6. Siempre que sea posible, conecta este experimento con resultados previos leyendo
+6. La métrica de control no debe ser normalizada por sí misma ni por un máximo trivial.
+   Cualquier truco de este tipo está prohibido: queremos medidas físicas reales.
+
+7. Siempre que sea posible, conecta este experimento con resultados previos leyendo
    '{DESCUBRIMIENTOS_FILE}' (si existe) o '{REGISTROS_FILE}' para intentar mejorar
    alguna métrica o explorar un patrón curioso detectado antes.
 
@@ -373,5 +399,5 @@ si crees que la métrica obtenida supone un avance, una confirmación o un fallo
 
 
 if __name__ == "__main__":
-    logging.info("Arrancando Sistema de Civilización IA (Programa de Investigación Cuántica)...")
+    logging.info("Arrancando Sistema de Civilización IA (Programa de Investigación Cuántica 1D/2D/3D)...")
     simular_ciclo_de_investigacion()
